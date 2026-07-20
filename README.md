@@ -91,6 +91,9 @@ err = c.SetClock(ctx, time.Now())
 status, err := c.SystemStatus(ctx)
 ```
 
+New here? [`docs/API.md`](docs/API.md) is a grouped, one-line-per-function
+tour of everything the client can do.
+
 ## Examples
 
 Runnable programs live under [`examples/`](examples/) — each takes `-addr HOST`:
@@ -183,6 +186,7 @@ go test ./...
 
 ## References
 
+- [`docs/API.md`](docs/API.md) — grouped reference of every client and text-builder method
 - `docs/JetFileII_v2.5.4.pdf` — the protocol spec this implements
 - [johnoneil/LEDSign](https://github.com/johnoneil/LEDSign) — independent
   reverse-engineering of a Sigma 3000 serial client, used to cross-check the
