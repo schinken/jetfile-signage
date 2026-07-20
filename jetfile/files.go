@@ -3,6 +3,7 @@ package jetfile
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -10,6 +11,11 @@ import (
 // chunkSize is the payload per write/read packet. The spec recommends 512
 // or 1024 and caps packets at 1024 bytes of data.
 const chunkSize = 512
+
+// maxFileSize caps a paged read so a malfunctioning or hostile sign can't
+// drive the client out of memory. The spec limits files to 320K; this is a
+// generous ceiling above that.
+const maxFileSize = 16 << 20
 
 // fileLabel pads a file name to the 12-byte label field.
 func fileLabel(label string) ([12]byte, error) {
@@ -182,9 +188,18 @@ func (c *Client) readPaged(ctx context.Context, cmd Command, arg func(page uint1
 	for page := uint16(1); ; page++ {
 		resp, err := c.query(ctx, cmd, arg(page))
 		if err != nil {
+			// A sign may signal the end of a file with a status reply rather
+			// than an announced size; that's a clean stop, not a failure.
+			var derr *DeviceError
+			if errors.As(err, &derr) && derr.Code == StatusEndOfFile {
+				return out, nil
+			}
 			return nil, err
 		}
 		out = append(out, resp.Data...)
+		if len(out) > maxFileSize {
+			return nil, fmt.Errorf("jetfile: read exceeds %d-byte limit", maxFileSize)
+		}
 
 		// response arg: [2]file size, [2]page, [4]file size for big files
 		total := -1
@@ -192,9 +207,12 @@ func (c *Client) readPaged(ctx context.Context, cmd Command, arg func(page uint1
 			total = int(binary.LittleEndian.Uint16(resp.Arg))
 		}
 		if len(resp.Arg) >= 8 {
-			if big := binary.LittleEndian.Uint32(resp.Arg[4:]); int(big) > total {
-				total = int(big)
+			if big := int(binary.LittleEndian.Uint32(resp.Arg[4:])); big > total {
+				total = big
 			}
+		}
+		if total == 0xFFFF { // 16-bit size saturated with no larger 32-bit size: unknown
+			total = -1
 		}
 		if total >= 0 && len(out) >= total {
 			return out[:total], nil

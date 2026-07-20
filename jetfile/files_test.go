@@ -131,6 +131,33 @@ func TestReadTextFilePaged(t *testing.T) {
 	}
 }
 
+// TestReadPagedStopsOnEndOfFile: a sign that ends a read with a
+// StatusEndOfFile reply (instead of an announced size) should return the
+// bytes gathered so far, not an error.
+func TestReadPagedStopsOnEndOfFile(t *testing.T) {
+	content := bytes.Repeat([]byte{'y'}, 700) // two data pages, then EOF status
+	c := newTestClient(t, func(req *Packet) []*Packet {
+		size := int(binary.LittleEndian.Uint16(req.Arg[16:]))
+		page := int(binary.LittleEndian.Uint16(req.Arg[18:]))
+		lo := (page - 1) * size
+		if lo >= len(content) {
+			return []*Packet{{Flag: 1, Arg: []byte{0x09, 0x90, 0, 0}}} // StatusEndOfFile
+		}
+		arg := make([]byte, 8)
+		binary.LittleEndian.PutUint16(arg[0:], 0xFFFF) // size unknown: can't stop early
+		binary.LittleEndian.PutUint16(arg[2:], uint16(page))
+		return []*Packet{{Flag: 0, Arg: arg, Data: content[lo:min(lo+size, len(content))]}}
+	})
+
+	got, err := c.ReadTextFile(context.Background(), "AB")
+	if err != nil {
+		t.Fatalf("EndOfFile should end the read cleanly, got %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("got %d bytes, want %d", len(got), len(content))
+	}
+}
+
 func TestReadFileNotFound(t *testing.T) {
 	c := newTestClient(t, func(req *Packet) []*Packet {
 		return []*Packet{{Flag: 1, Arg: []byte{0x08, 0x90, 0, 0}}}

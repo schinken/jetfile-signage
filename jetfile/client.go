@@ -90,9 +90,11 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 // Close closes the underlying connection.
 func (c *Client) Close() error { return c.conn.Close() }
 
-// Do sends p and returns the sign's response. It stamps Serial, Source and
-// Dest from the client configuration. If the response is a status reply
-// with a non-success code, Do returns both the packet and a *DeviceError.
+// Do sends p and returns the sign's response. It stamps Serial and fills in
+// Source/Dest from the client configuration when the caller left them zero —
+// set p.Dest to target a specific sign on a shared bus. If the response is a
+// status reply with a non-success code, Do returns both the packet and a
+// *DeviceError.
 //
 // Use Do for protocol commands without a typed wrapper:
 //
@@ -116,9 +118,14 @@ func (c *Client) Do(ctx context.Context, p *Packet) (*Packet, error) {
 
 	c.serial++
 	p.Response = false
+	p.Flag = 0
 	p.Serial = c.serial
-	p.Source = c.source
-	p.Dest = c.dest
+	if p.Source == 0 {
+		p.Source = c.source
+	}
+	if p.Dest == (Address{}) {
+		p.Dest = c.dest
+	}
 
 	wire, err := p.Marshal()
 	if err != nil {
@@ -158,31 +165,6 @@ func (c *Client) exec(ctx context.Context, cmd Command, arg, data []byte) error 
 // query runs a command and returns the response packet.
 func (c *Client) query(ctx context.Context, cmd Command, arg []byte) (*Packet, error) {
 	return c.Do(ctx, &Packet{Cmd: cmd, Arg: arg})
-}
-
-// send transmits p without waiting for a response (Flag set to "no echo").
-// Only used for the few commands the spec defines as reply-less.
-func (c *Client) send(ctx context.Context, p *Packet) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := c.conn.SetDeadline(time.Now().Add(c.timeout)); err != nil {
-		return err
-	}
-	c.serial++
-	p.Serial = c.serial
-	p.Source = c.source
-	p.Dest = c.dest
-	p.Flag = 1 // in-echo: no reply
-	wire, err := p.Marshal()
-	if err != nil {
-		return err
-	}
-	_, err = c.conn.Write(wire)
-	return err
 }
 
 // ctxErr prefers the context's error over a net timeout caused by
