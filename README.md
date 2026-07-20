@@ -105,6 +105,7 @@ Runnable programs live under [`examples/`](examples/) — each takes `-addr HOST
 | [`ticker`](examples/ticker) | A live ticker: every line piped on stdin scrolls across the board, written to the RAM disk to spare the flash. Graceful Ctrl-C. |
 | [`fsutil`](examples/fsutil) | A little `ls` / `df` / `cat` / `rm` CLI for the sign's on-board filesystem, with `*DeviceError` handling. |
 | [`snake`](examples/snake) | A self-playing game of Snake driven through the pixel-streaming API — packs full RG frames and pushes one per tick. The solver follows a Hamiltonian cycle (with safe shortcuts) so it never traps itself. |
+| [`life`](examples/life) | Conway's Game of Life over the pixel-streaming API — a wrapping grid that colors newborn cells amber and survivors green, reseeding when it stalls. |
 
 ```sh
 go run ./examples/dashboard -addr 10.0.0.42 -name "b4ckspace"
