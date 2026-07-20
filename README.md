@@ -11,6 +11,7 @@ rebranded signs built on them (Eurolite ESN, 4U2SEE, …) — straight from Go.
 Scrolling text, live clock/temperature inserts, images, playlists, the
 on-board filesystem and raw pixel streaming, all over plain TCP/UDP.
 
+[![CI](https://github.com/schinken/jetfile-signage/actions/workflows/ci.yml/badge.svg)](https://github.com/schinken/jetfile-signage/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/schinken/jetfile-signage.svg)](https://pkg.go.dev/github.com/schinken/jetfile-signage/jetfile)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/schinken/jetfile-signage)](go.mod)
 

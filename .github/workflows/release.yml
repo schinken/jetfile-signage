@@ -1,0 +1,79 @@
+name: release
+
+# Tag a commit `vX.Y.Z` and push it to build and publish the examples:
+#   git tag v0.1.0 && git push origin v0.1.0
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create releases and upload assets
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build examples (${{ matrix.goos }}/amd64)
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: amd64
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          for dir in examples/*/; do
+            name=$(basename "$dir")
+            [ -f "${dir}main.go" ] || continue   # skip helper packages (internal/)
+            ext=""; [ "$GOOS" = windows ] && ext=".exe"
+            echo "building $name -> dist/${name}${ext}"
+            go build -trimpath -ldflags="-s -w" -o "dist/${name}${ext}" "./examples/${name}"
+          done
+
+      - name: Archive
+        run: |
+          base="jetfile-signage-examples-${{ matrix.goos }}-amd64"
+          if [ "${{ matrix.goos }}" = windows ]; then
+            (cd dist && zip -r "../${base}.zip" .)
+          else
+            tar -czf "${base}.tar.gz" -C dist .
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: examples-${{ matrix.goos }}
+          path: |
+            *.tar.gz
+            *.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Checksums
+        run: (cd artifacts && sha256sum * > checksums.txt)
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            artifacts/*.tar.gz artifacts/*.zip artifacts/checksums.txt \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
