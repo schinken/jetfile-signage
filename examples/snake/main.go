@@ -25,15 +25,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/schinken/jetfile-signage/examples/internal/ledframe"
 	"github.com/schinken/jetfile-signage/jetfile"
-)
-
-// 2-bit pixel codes: bit1 = red LED, bit0 = green LED.
-const (
-	off   = 0
-	green = 1
-	red   = 2
-	amber = 3
 )
 
 func main() {
@@ -337,26 +330,15 @@ func serpentine(w, h int) []point {
 	return seq
 }
 
-// frame renders the board to a 1-bit RG packed buffer: row-major, 4 pixels
-// per byte, first pixel in the high bits, red bit above green in each 2-bit
-// pair. Each row is padded to a whole byte.
-//
-// ponytail: the packing matches the spec's description but is untested on
-// hardware. If the panel shows a sheared or color-swapped picture, the three
-// knobs are all here: the row stride, the shift direction, and which bit of
-// the pair is red vs green.
+// frame draws the board: body green, head amber, food red.
 func (g *game) frame() []byte {
-	stride := (g.panelW + 3) / 4
-	buf := make([]byte, stride*g.panelH)
-	set := func(x, y, v int) {
-		buf[y*stride+x/4] |= byte(v) << uint(6-2*(x%4))
-	}
+	f := ledframe.New(g.panelW, g.panelH)
 	for _, s := range g.snake {
-		set(s.x, s.y, green)
+		f.Set(s.x, s.y, ledframe.Green)
 	}
-	set(g.snake[0].x, g.snake[0].y, amber) // head stands out
-	set(g.food.x, g.food.y, red)
-	return buf
+	f.Set(g.snake[0].x, g.snake[0].y, ledframe.Amber) // head stands out
+	f.Set(g.food.x, g.food.y, ledframe.Red)
+	return f.Bytes()
 }
 
 func abs(n int) int {

@@ -106,6 +106,7 @@ Runnable programs live under [`examples/`](examples/) — each takes `-addr HOST
 | [`fsutil`](examples/fsutil) | A little `ls` / `df` / `cat` / `rm` CLI for the sign's on-board filesystem, with `*DeviceError` handling. |
 | [`snake`](examples/snake) | A self-playing game of Snake driven through the pixel-streaming API — packs full RG frames and pushes one per tick. The solver follows a Hamiltonian cycle (with safe shortcuts) so it never traps itself. |
 | [`life`](examples/life) | Conway's Game of Life over the pixel-streaming API — a wrapping grid that colors newborn cells amber and survivors green, reseeding when it stalls. |
+| [`badapple`](examples/badapple) | Plays a monochrome video (the classic "Bad Apple!!") over the pixel-streaming API — drives `ffmpeg` to decode panel-sized frames, or reads them from stdin. |
 
 ```sh
 go run ./examples/dashboard -addr 10.0.0.42 -name "b4ckspace"

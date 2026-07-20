@@ -24,15 +24,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/schinken/jetfile-signage/examples/internal/ledframe"
 	"github.com/schinken/jetfile-signage/jetfile"
-)
-
-// 2-bit pixel codes: bit1 = red LED, bit0 = green LED.
-const (
-	off   = 0
-	green = 1
-	red   = 2
-	amber = 3
 )
 
 func main() {
@@ -179,32 +172,24 @@ func (g *grid) population() int {
 	return n
 }
 
-// frame packs the live cells into a 1-bit RG buffer: row-major, 4 pixels per
-// byte, first pixel in the high bits, red bit above green in each 2-bit pair.
-// Rows are padded to a whole byte. Cells born this generation are amber,
-// survivors green.
-//
-// ponytail: the packing matches the spec's description but is untested on
-// hardware. If the panel shows a sheared or color-swapped picture, the three
-// knobs are all here: the row stride, the shift direction, and which bit of
-// the pair is red vs green.
+// frame draws the live cells: cells born this generation amber, survivors
+// green.
 func (g *grid) frame() []byte {
-	stride := (g.w + 3) / 4
-	buf := make([]byte, stride*g.h)
+	f := ledframe.New(g.w, g.h)
 	for y := 0; y < g.h; y++ {
 		for x := 0; x < g.w; x++ {
 			i := y*g.w + x
 			if !g.cells[i] {
 				continue
 			}
-			v := green
+			v := ledframe.Green
 			if !g.prev[i] { // wasn't alive last generation
-				v = amber
+				v = ledframe.Amber
 			}
-			buf[y*stride+x/4] |= byte(v) << uint(6-2*(x%4))
+			f.Set(x, y, v)
 		}
 	}
-	return buf
+	return f.Bytes()
 }
 
 func equal(a, b []bool) bool {
