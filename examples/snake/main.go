@@ -103,13 +103,13 @@ const (
 )
 
 type game struct {
-	panelW, panelH int      // physical panel, what frame() renders into
-	w, h           int      // play field == the Hamiltonian-cycle area
-	snake          []point  // head at index 0
+	panelW, panelH int     // physical panel, what frame() renders into
+	w, h           int     // play field == the Hamiltonian-cycle area
+	snake          []point // head at index 0
 	dir            point
 	food           point
-	order, next    []int    // cycle: order[cell] = position, next[cell] = successor
-	ok             bool     // a cycle exists; otherwise fall back to greedy
+	order, next    []int // cycle: order[cell] = position, next[cell] = successor
+	ok             bool  // a cycle exists; otherwise fall back to greedy
 }
 
 func newGame(panelW, panelH int) *game {

@@ -26,7 +26,7 @@ ASCII "first format" for quick fire-and-forget updates.
 - **Zero dependencies** — standard library only.
 - **Fully unit-tested** against an in-memory fake sign (`net.Pipe`); no
   hardware required to hack on it.
-- **Complete command coverage** — text/string/picture files, playlists,
+- **Broad command coverage** — text/string/picture files, playlists,
   clock, power, brightness, display tests, the FAT-style filesystem, pixel
   streaming and login, plus a `Do()` escape hatch for anything unwrapped.
 - **A fluent text builder** for the display control characters — fonts,
@@ -35,6 +35,15 @@ ASCII "first format" for quick fire-and-forget updates.
 ```sh
 go get github.com/schinken/jetfile-signage/jetfile
 ```
+
+> [!NOTE]
+> **Status: validated against the spec, not yet against a physical sign.**
+> The wire format is cross-checked against the independent
+> [johnoneil/LEDSign](https://github.com/johnoneil/LEDSign) implementation and
+> exercised by unit tests against an in-memory fake sign, but the library has
+> not been run on real hardware. Treat the command layer as beta — a few
+> spec-ambiguous byte layouts (noted in the code) may need calibration.
+> Hardware reports and PRs are very welcome.
 
 ## Supported hardware
 
@@ -197,3 +206,7 @@ go test ./...
   checksum and framing
 - [b4ckspace/ledboard-v2](https://github.com/b4ckspace/ledboard-v2) — the
   previous UDP/first-format implementation this library replaces
+
+## License
+
+[MIT](LICENSE) © Christopher Schirner

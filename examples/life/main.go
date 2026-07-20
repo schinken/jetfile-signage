@@ -98,7 +98,7 @@ type grid struct {
 
 const (
 	density     = 0.30 // fraction of cells alive after a (re)seed
-	stableLimit = 8     // reseed after this many stalled generations
+	stableLimit = 8    // reseed after this many stalled generations
 )
 
 func newGrid(w, h int) *grid {
