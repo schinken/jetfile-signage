@@ -8,13 +8,25 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.22', '1.23', 'stable']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ matrix.go }}
           cache: false # no dependencies, so no go.sum to cache
+      - name: Formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "gofmt needed on:"; echo "$unformatted"; exit 1
+          fi
       - run: go vet ./...
-      - run: go test ./...
+      - name: Test (race + coverage)
+        run: go test -race -covermode=atomic -coverprofile=cover.out ./...
+      - name: Coverage summary
+        run: go tool cover -func=cover.out | tail -1
       - name: Build everything (library + examples)
         run: go build ./...
