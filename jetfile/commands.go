@@ -328,8 +328,7 @@ func (c *Client) Mkdir(ctx context.Context, path string) error {
 	return c.exec(ctx, CmdMkdir, append([]byte(path), 0), nil)
 }
 
-// Rename renames a file or folder. The spec does not document the argument
-// layout precisely; the accepted convention is both paths NUL-terminated.
+// Rename renames a file or folder.
 func (c *Client) Rename(ctx context.Context, from, to string) error {
 	return c.twoPaths(ctx, CmdRename, from, to)
 }
@@ -343,7 +342,8 @@ func (c *Client) twoPaths(ctx context.Context, cmd Command, from, to string) err
 	if from == "" || to == "" {
 		return fmt.Errorf("jetfile: empty path")
 	}
-	arg := append([]byte(from), 0)
+	// Spec tables 3.7.4/3.7.5: "source + Space + target + NULL".
+	arg := append([]byte(from), ' ')
 	arg = append(arg, to...)
 	return c.exec(ctx, cmd, append(arg, 0), nil)
 }

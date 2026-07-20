@@ -10,6 +10,19 @@ import (
 
 var ctx = context.Background()
 
+func TestRenameSendsSpaceSeparatedPaths(t *testing.T) {
+	var req *Packet
+	c := newTestClient(t, func(r *Packet) []*Packet { req = r; return ok() })
+	if err := c.Rename(ctx, `D:\T\AA`, `D:\T\BB`); err != nil {
+		t.Fatal(err)
+	}
+	// Spec 3.7.4: source + Space + target + NULL (16 bytes, no arg padding).
+	want := []byte(`D:\T\AA` + " " + `D:\T\BB` + "\x00")
+	if !bytes.Equal(req.Arg, want) {
+		t.Fatalf("arg = % X\nwant  % X", req.Arg, want)
+	}
+}
+
 func TestConnectionTest(t *testing.T) {
 	c := newTestClient(t, func(req *Packet) []*Packet {
 		return []*Packet{{Flag: 0, Arg: []byte{
