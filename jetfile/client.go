@@ -90,10 +90,17 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 // Close closes the underlying connection.
 func (c *Client) Close() error { return c.conn.Close() }
 
-// Do sends p and returns the sign's response. It stamps Serial and fills in
-// Source/Dest from the client configuration when the caller left them zero —
-// set p.Dest to target a specific sign on a shared bus. If the response is a
-// status reply with a non-success code, Do returns both the packet and a
+// Do sends p and returns the sign's response.
+//
+// It stamps Serial, and fills in Source/Dest from the client configuration
+// when the caller left them at their zero value — set p.Dest to a non-zero
+// address to target one sign on a shared bus. Because the zero value is also
+// the broadcast address, a client created WithAddress cannot broadcast a
+// single call this way; use a broadcast-default client for that.
+//
+// If p.Flag is FlagNoReply, Do writes the packet and returns (nil, nil)
+// without waiting for a response. Otherwise it reads the reply, and if that
+// reply carries a non-success status returns both the packet and a
 // *DeviceError.
 //
 // Use Do for protocol commands without a typed wrapper:
@@ -118,7 +125,6 @@ func (c *Client) Do(ctx context.Context, p *Packet) (*Packet, error) {
 
 	c.serial++
 	p.Response = false
-	p.Flag = 0
 	p.Serial = c.serial
 	if p.Source == 0 {
 		p.Source = c.source
@@ -133,6 +139,10 @@ func (c *Client) Do(ctx context.Context, p *Packet) (*Packet, error) {
 	}
 	if _, err := c.conn.Write(wire); err != nil {
 		return nil, ctxErr(ctx, err)
+	}
+
+	if p.Flag == FlagNoReply {
+		return nil, nil // caller asked for no reply; nothing to read
 	}
 
 	// Skip stale frames (wrong serial), e.g. late answers to a timed-out

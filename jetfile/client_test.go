@@ -67,6 +67,46 @@ func TestDoStampsAndReturnsResponse(t *testing.T) {
 	}
 }
 
+func TestDoNoReplyReturnsWithoutReading(t *testing.T) {
+	// The sign never answers; Do must still return promptly because the
+	// request opted out of a reply. The channel synchronizes the assertion
+	// (Do doesn't read, so there's no other happens-before edge).
+	got := make(chan *Packet, 1)
+	c := newTestClient(t, func(req *Packet) []*Packet {
+		got <- req
+		return nil
+	}, WithTimeout(2*time.Second))
+
+	resp, err := c.Do(context.Background(), &Packet{Cmd: CmdPause, Flag: FlagNoReply})
+	if err != nil || resp != nil {
+		t.Fatalf("got (%v, %v), want (nil, nil)", resp, err)
+	}
+	select {
+	case req := <-got:
+		if req.Flag != FlagNoReply {
+			t.Fatalf("request flag = %d, want FlagNoReply", req.Flag)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("request never reached the sign")
+	}
+}
+
+func TestDoHonorsExplicitDest(t *testing.T) {
+	var seen *Packet
+	c := newTestClient(t, func(req *Packet) []*Packet {
+		seen = req
+		return []*Packet{{Flag: 0, Data: []byte("ok")}}
+	}, WithAddress(3, 7))
+
+	// A non-zero Dest on the packet must override the client default.
+	if _, err := c.Do(context.Background(), &Packet{Cmd: CmdConnectionTest, Dest: Address{5, 9}}); err != nil {
+		t.Fatal(err)
+	}
+	if seen.Dest != (Address{5, 9}) {
+		t.Fatalf("Dest = %+v, want {5 9}", seen.Dest)
+	}
+}
+
 func TestDoDeviceError(t *testing.T) {
 	c := newTestClient(t, func(req *Packet) []*Packet {
 		return []*Packet{{Flag: 1, Arg: []byte{0x08, 0x90, 0, 0}}}

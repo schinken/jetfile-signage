@@ -134,6 +134,10 @@ type Packet struct {
 
 const headerSize = 16
 
+// FlagNoReply, set on a request Packet's Flag, tells the sign not to answer;
+// Client.Do then writes the packet and returns without waiting for a reply.
+const FlagNoReply byte = 1
+
 var (
 	ErrBadSync     = errors.New("jetfile: bad sync bytes")
 	ErrBadChecksum = errors.New("jetfile: checksum mismatch")
