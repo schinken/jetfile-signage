@@ -44,6 +44,7 @@ st, _ := c.SystemStatus(ctx)          // 4. read the sign's state
 |---|---|
 | `Dial(addr, opts...) (*Client, error)` | Connect to a sign over TCP; `addr` without a port defaults to `:9520`. |
 | `NewClient(conn, opts...) *Client` | Wrap an existing `net.Conn` (e.g. a `*net.UDPConn` for UDP-only signs). |
+| `Client.To(group, unit byte) *Client` | A client variant addressing one sign (or `To(0,0)` to broadcast), sharing the connection. |
 | `Client.Close() error` | Close the underlying connection. |
 
 Options passed to `Dial` / `NewClient`:

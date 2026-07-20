@@ -45,14 +45,14 @@ func (c *Client) WriteTextSimple(ctx context.Context, target string, content *Te
 
 // writeRaw writes bytes under the client lock with the usual deadline.
 func (c *Client) writeRaw(ctx context.Context, wire []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.io.mu.Lock()
+	defer c.io.mu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := c.conn.SetDeadline(time.Now().Add(c.timeout)); err != nil {
+	if err := c.io.conn.SetDeadline(time.Now().Add(c.timeout)); err != nil {
 		return err
 	}
-	_, err := c.conn.Write(wire)
+	_, err := c.io.conn.Write(wire)
 	return err
 }

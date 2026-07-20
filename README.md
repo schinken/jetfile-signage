@@ -178,8 +178,9 @@ resp, err := c.Do(ctx, &jetfile.Packet{Cmd: 0x0901, Arg: []byte{0, 0, 3, 0}})
 
 - Signs listen on TCP **and** UDP 9520. For UDP, bring your own conn:
   `jetfile.NewClient(udpConn)`.
-- Multiple signs on one bus: `jetfile.WithAddress(group, unit)`;
-  the default is broadcast (0, 0).
+- Multiple signs on one bus: `jetfile.WithAddress(group, unit)` sets the
+  default (broadcast 0,0 if unset), and `c.To(group, unit)` addresses one
+  sign per call — `c.To(0, 0)` broadcasts — sharing the connection.
 - `jetfile.WithPartition('E')` targets the RAM disk — no flash wear for
   content that updates often. Flash (`'D'`, default) survives power cycles.
 - Checksum is the 16-bit truncated byte sum from the length field to the

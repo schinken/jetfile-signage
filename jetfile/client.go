@@ -16,18 +16,22 @@ const DefaultPort = 9520
 
 // Client talks to one LED sign over a net.Conn. It is safe for concurrent
 // use; requests are serialized because the protocol is strict
-// request/response.
+// request/response. Address a specific sign (or broadcast) with To.
 type Client struct {
-	conn net.Conn
-	r    *bufio.Reader
-
-	mu     sync.Mutex
-	serial uint16
+	io *ioConn // shared across To variants so they serialize on one conn
 
 	source    uint16
 	dest      Address
 	timeout   time.Duration
 	partition byte
+}
+
+// ioConn is the connection state shared by a Client and its To variants.
+type ioConn struct {
+	conn   net.Conn
+	r      *bufio.Reader
+	mu     sync.Mutex
+	serial uint16
 }
 
 // Option configures a Client.
@@ -59,8 +63,7 @@ func WithSource(s uint16) Option {
 // that only speak UDP).
 func NewClient(conn net.Conn, opts ...Option) *Client {
 	c := &Client{
-		conn:      conn,
-		r:         bufio.NewReader(conn),
+		io:        &ioConn{conn: conn, r: bufio.NewReader(conn)},
 		timeout:   5 * time.Second,
 		partition: 'D',
 	}
@@ -87,28 +90,37 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 	return NewClient(conn, opts...), nil
 }
 
-// Close closes the underlying connection.
-func (c *Client) Close() error { return c.conn.Close() }
+// Close closes the underlying connection. Closing any To variant closes the
+// shared connection for all of them.
+func (c *Client) Close() error { return c.io.conn.Close() }
+
+// To returns a Client that sends to the given group/unit address while
+// sharing this client's connection and request serialization. Use it to
+// address one sign on a shared bus, or To(0, 0) to broadcast, without
+// disturbing the original client:
+//
+//	c.To(1, 4).WriteTextFile(ctx, "0", msg) // this sign
+//	c.To(0, 0).SetClock(ctx, time.Now())    // every sign on the bus
+func (c *Client) To(group, unit byte) *Client {
+	nc := *c // shares io (pointer); dest/source/timeout/partition are copies
+	nc.dest = Address{Group: group, Unit: unit}
+	return &nc
+}
 
 // Do sends p and returns the sign's response.
 //
-// It stamps Serial, and fills in Source/Dest from the client configuration
-// when the caller left them at their zero value — set p.Dest to a non-zero
-// address to target one sign on a shared bus. Because the zero value is also
-// the broadcast address, a client created WithAddress cannot broadcast a
-// single call this way; use a broadcast-default client for that.
-//
-// If p.Flag is FlagNoReply, Do writes the packet and returns (nil, nil)
-// without waiting for a response. Otherwise it reads the reply, and if that
-// reply carries a non-success status returns both the packet and a
-// *DeviceError.
+// It stamps Serial, Source and Dest from the client — use To to change the
+// destination (To(0, 0) broadcasts). If p.Flag is FlagNoReply, Do writes the
+// packet and returns (nil, nil) without waiting; otherwise it reads the reply
+// and, if that reply carries a non-success status, returns both the packet
+// and a *DeviceError.
 //
 // Use Do for protocol commands without a typed wrapper:
 //
 //	resp, err := c.Do(ctx, &jetfile.Packet{Cmd: 0x0902})
 func (c *Client) Do(ctx context.Context, p *Packet) (*Packet, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.io.mu.Lock()
+	defer c.io.mu.Unlock()
 
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -117,27 +129,23 @@ func (c *Client) Do(ctx context.Context, p *Packet) (*Packet, error) {
 	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
 		deadline = d
 	}
-	if err := c.conn.SetDeadline(deadline); err != nil {
+	if err := c.io.conn.SetDeadline(deadline); err != nil {
 		return nil, err
 	}
-	stop := context.AfterFunc(ctx, func() { c.conn.SetDeadline(time.Unix(1, 0)) })
+	stop := context.AfterFunc(ctx, func() { c.io.conn.SetDeadline(time.Unix(1, 0)) })
 	defer stop()
 
-	c.serial++
+	c.io.serial++
 	p.Response = false
-	p.Serial = c.serial
-	if p.Source == 0 {
-		p.Source = c.source
-	}
-	if p.Dest == (Address{}) {
-		p.Dest = c.dest
-	}
+	p.Serial = c.io.serial
+	p.Source = c.source
+	p.Dest = c.dest
 
 	wire, err := p.Marshal()
 	if err != nil {
 		return nil, err
 	}
-	if _, err := c.conn.Write(wire); err != nil {
+	if _, err := c.io.conn.Write(wire); err != nil {
 		return nil, ctxErr(ctx, err)
 	}
 
@@ -151,7 +159,7 @@ func (c *Client) Do(ctx context.Context, p *Packet) (*Packet, error) {
 		if skipped > 16 {
 			return nil, fmt.Errorf("jetfile: no response for serial %d", p.Serial)
 		}
-		resp, err := ReadPacket(c.r)
+		resp, err := ReadPacket(c.io.r)
 		if err != nil {
 			return nil, ctxErr(ctx, err)
 		}

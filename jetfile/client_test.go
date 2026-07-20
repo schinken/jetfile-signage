@@ -91,19 +91,32 @@ func TestDoNoReplyReturnsWithoutReading(t *testing.T) {
 	}
 }
 
-func TestDoHonorsExplicitDest(t *testing.T) {
+func TestToTargetsAddressAndBroadcasts(t *testing.T) {
 	var seen *Packet
 	c := newTestClient(t, func(req *Packet) []*Packet {
 		seen = req
 		return []*Packet{{Flag: 0, Data: []byte("ok")}}
 	}, WithAddress(3, 7))
 
-	// A non-zero Dest on the packet must override the client default.
-	if _, err := c.Do(context.Background(), &Packet{Cmd: CmdConnectionTest, Dest: Address{5, 9}}); err != nil {
+	// To targets a specific unit...
+	if _, err := c.To(5, 9).Do(context.Background(), &Packet{Cmd: CmdConnectionTest}); err != nil {
 		t.Fatal(err)
 	}
 	if seen.Dest != (Address{5, 9}) {
 		t.Fatalf("Dest = %+v, want {5 9}", seen.Dest)
+	}
+
+	// ...and can broadcast even from a unit-addressed client (the fix).
+	if _, err := c.To(0, 0).Do(context.Background(), &Packet{Cmd: CmdConnectionTest}); err != nil {
+		t.Fatal(err)
+	}
+	if seen.Dest != (Address{0, 0}) {
+		t.Fatalf("Dest = %+v, want broadcast {0 0}", seen.Dest)
+	}
+
+	// The original client is unchanged.
+	if c.dest != (Address{3, 7}) {
+		t.Fatalf("original client mutated: %+v", c.dest)
 	}
 }
 
