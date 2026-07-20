@@ -104,6 +104,7 @@ Runnable programs live under [`examples/`](examples/) — each takes `-addr HOST
 | [`dashboard`](examples/dashboard) | A multi-page info display — banner, live clock/date, and a temperature/humidity page read off the sign's sensors. Deep dive on the text builder. |
 | [`ticker`](examples/ticker) | A live ticker: every line piped on stdin scrolls across the board, written to the RAM disk to spare the flash. Graceful Ctrl-C. |
 | [`fsutil`](examples/fsutil) | A little `ls` / `df` / `cat` / `rm` CLI for the sign's on-board filesystem, with `*DeviceError` handling. |
+| [`snake`](examples/snake) | A self-playing game of Snake driven through the pixel-streaming API — packs full RG frames and pushes one per tick. |
 
 ```sh
 go run ./examples/dashboard -addr 10.0.0.42 -name "b4ckspace"
