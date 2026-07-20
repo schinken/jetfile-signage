@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.svg" alt="JETFILE LED sign" width="560">
+
 # jetfile-signage
 
 **A pure-Go client for LED message signs that speak the JetFile II protocol.**
