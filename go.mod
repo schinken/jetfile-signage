@@ -1,3 +1,3 @@
-module github.com/b4ckspace/ledboard-lib
+module github.com/schinken/jetfile-signage
 
 go 1.26.3

@@ -11,7 +11,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/b4ckspace/ledboard-lib/jetfile"
+	"github.com/schinken/jetfile-signage/jetfile"
 )
 
 func main() {

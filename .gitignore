@@ -1,2 +1,5 @@
-# binaries
+# built example binaries (examples/<name>/<name>)
 /examples/basic/basic
+/examples/dashboard/dashboard
+/examples/ticker/ticker
+/examples/fsutil/fsutil

@@ -1,16 +1,68 @@
-# ledboard-lib
+<div align="center">
 
-Go client for LED signs speaking the **JetFile II** protocol (Chainzone /
-Texcellent controllers, e.g. Sigma series). Implements the binary
-communication format of spec v2.5.4 (`docs/JetFileII_v2.5.4.pdf`) over TCP
-port 9520, plus the lightweight ASCII format for quick fire-and-forget
-updates.
+# jetfile-signage
 
-Pure standard library, no dependencies.
+**A pure-Go client for LED message signs that speak the JetFile II protocol.**
 
+Drive Chainzone / Texcellent *Sigma 3000*-class boards — and the many
+rebranded signs built on them (Eurolite ESN, 4U2SEE, …) — straight from Go.
+Scrolling text, live clock/temperature inserts, images, playlists, the
+on-board filesystem and raw pixel streaming, all over plain TCP/UDP.
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/schinken/jetfile-signage.svg)](https://pkg.go.dev/github.com/schinken/jetfile-signage/jetfile)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/schinken/jetfile-signage)](go.mod)
+
+</div>
+
+---
+
+Implements the binary communication format of spec **v2.5.4**
+(`docs/JetFileII_v2.5.4.pdf`) over TCP/UDP port **9520**, plus the lightweight
+ASCII "first format" for quick fire-and-forget updates.
+
+- **Zero dependencies** — standard library only.
+- **Fully unit-tested** against an in-memory fake sign (`net.Pipe`); no
+  hardware required to hack on it.
+- **Complete command coverage** — text/string/picture files, playlists,
+  clock, power, brightness, display tests, the FAT-style filesystem, pixel
+  streaming and login, plus a `Do()` escape hatch for anything unwrapped.
+- **A fluent text builder** for the display control characters — fonts,
+  colors, animations, alignment and live clock/temperature inserts.
+
+```sh
+go get github.com/schinken/jetfile-signage/jetfile
 ```
-go get github.com/b4ckspace/ledboard-lib/jetfile
-```
+
+## Supported hardware
+
+JetFile II is the protocol of **[Chainzone Technology](https://www.chainzone.com/)**
+(also OEM-branded **Texcellent**), driven on the desktop by their *Sigma 3000 /
+Sigma Play* software. A large family of signs — many rebadged for Western
+distributors — speak it. If your board came with Sigma 3000-style software or
+is listed below, this library should talk to it.
+
+| Sign / family | Vendor | Notes |
+|---|---|---|
+| *Sigma 3000*-compatible signs | [Chainzone / Texcellent](https://www.chainzone.com/) | The reference hardware for the protocol. |
+| **Eurolite ESN** series (ESN 7×80, 16×64, 16×256, …) | [Eurolite](https://www.eurolite.de/) / [Steinigke Showtechnic](https://www.steinigke.de/en/mpn80500107-eurolite-esn-7x80-usb-lan-led-moving-message.html) | Widely-sold rebadged JetFile sign; the hardware this library was built against. |
+| **4U2SEE** indoor/outdoor tricolour displays | [Electro-Matic Visual](https://visual.electro-matic.com/led-signs/) | Sigma 3000-controlled; sold in the US. |
+| **Hyperion** displays | — | Named alongside 4U2SEE in Sigma 3000; vendor unconfirmed. |
+| **MVS 780RG** moving-message sign | — | Reported to speak JetFile II over IP; vendor unconfirmed. |
+
+Resellers/integrators that ship JetFile signs and Sigma software include
+[I.B.O. Associates](https://www.iboassociates.com/) (US) and
+[London Electronics](http://www.london-electronics.com/) (UK, hosts a public
+copy of the protocol spec).
+
+> The Chainzone lineage is well attested; several rebrands (Eurolite ESN in
+> particular) ship the hardware without ever naming the protocol, so those
+> links are inferred from matching wire behaviour. If you confirm a board —
+> or find a new one — a PR to this table is very welcome.
+
+Cross-referenced against the independent reverse-engineering in
+[johnoneil/LEDSign](https://github.com/johnoneil/LEDSign) (a serial-port
+Sigma 3000 client) and the earlier UDP implementation
+[schinken/Eurolite-ESN-Ledboard](https://github.com/schinken).
 
 ## Quick start
 
@@ -37,7 +89,22 @@ err = c.SetClock(ctx, time.Now())
 status, err := c.SystemStatus(ctx)
 ```
 
-A runnable version lives in `examples/basic`.
+## Examples
+
+Runnable programs live under [`examples/`](examples/) — each takes `-addr HOST`:
+
+| Example | What it shows |
+|---|---|
+| [`basic`](examples/basic) | Connect, print the sign's parameters, sync the clock, display a message. |
+| [`dashboard`](examples/dashboard) | A multi-page info display — banner, live clock/date, and a temperature/humidity page read off the sign's sensors. Deep dive on the text builder. |
+| [`ticker`](examples/ticker) | A live ticker: every line piped on stdin scrolls across the board, written to the RAM disk to spare the flash. Graceful Ctrl-C. |
+| [`fsutil`](examples/fsutil) | A little `ls` / `df` / `cat` / `rm` CLI for the sign's on-board filesystem, with `*DeviceError` handling. |
+
+```sh
+go run ./examples/dashboard -addr 10.0.0.42 -name "b4ckspace"
+tail -F /var/log/alerts | go run ./examples/ticker -addr 10.0.0.42
+go run ./examples/fsutil  -addr 10.0.0.42 df D
+```
 
 ## Text builder
 
@@ -82,7 +149,7 @@ if errors.Is(err, &jetfile.DeviceError{Code: jetfile.StatusFileNotFound}) { ... 
 ### Anything else: the escape hatch
 
 Commands without a wrapper (absolute address access, font uploads, CPU
-update checks, non-word-wrap mode ...) can be sent raw; framing, checksum,
+update checks, non-word-wrap mode …) can be sent raw; framing, checksum,
 serial matching and status mapping still apply:
 
 ```go
@@ -108,12 +175,15 @@ resp, err := c.Do(ctx, &jetfile.Packet{Cmd: 0x0901, Arg: []byte{0, 0, 3, 0}})
 Everything is unit-tested against an in-memory fake sign (`net.Pipe`), no
 hardware needed:
 
-```
+```sh
 go test ./...
 ```
 
 ## References
 
 - `docs/JetFileII_v2.5.4.pdf` — the protocol spec this implements
+- [johnoneil/LEDSign](https://github.com/johnoneil/LEDSign) — independent
+  reverse-engineering of a Sigma 3000 serial client, used to cross-check the
+  checksum and framing
 - [b4ckspace/ledboard-v2](https://github.com/b4ckspace/ledboard-v2) — the
   previous UDP/first-format implementation this library replaces
