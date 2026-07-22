@@ -43,6 +43,7 @@ st, _ := c.SystemStatus(ctx)          // 4. read the sign's state
 | Function | What it does |
 |---|---|
 | `Dial(addr, opts...) (*Client, error)` | Connect to a sign over TCP; `addr` without a port defaults to `:9520`. |
+| `DialUDP(addr, opts...) (*Client, error)` | Connect over UDP — required by signs with no TCP listener (e.g. EUROLITE ESN); `addr` without a port defaults to `:9520`. |
 | `NewClient(conn, opts...) *Client` | Wrap an existing `net.Conn` (e.g. a `*net.UDPConn` for UDP-only signs). |
 | `Client.To(group, unit byte) *Client` | A client variant addressing one sign (or `To(0,0)` to broadcast), sharing the connection. |
 | `Client.Close() error` | Close the underlying connection. |
@@ -136,7 +137,7 @@ Build the content with the [Text builder](#text-builder).
 | Method | What it does |
 |---|---|
 | `StartStream(dir, speed, oneBitRG)` | Enter unlimited-connection display mode for raw pixel pushes. |
-| `StreamData(pixels)` | Push pixel data into the stream buffer (split into ordered packets). |
+| `StreamData(pixels)` | Push pixel data into the stream buffer (split into ordered packets, sent fire-and-forget; pace frames yourself). |
 | `StreamStatus()` | Current stream buffer status code. |
 | `StopStream()` | Leave stream mode and resume the schedule. |
 
