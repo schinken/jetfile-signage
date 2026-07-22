@@ -90,6 +90,24 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 	return NewClient(conn, opts...), nil
 }
 
+// DialUDP connects to a sign over UDP. Several signs — notably the EUROLITE
+// ESN series — only speak UDP and have no TCP listener, so Dial would fail
+// against them. addr without a port defaults to :9520.
+func DialUDP(addr string, opts ...Option) (*Client, error) {
+	if _, _, err := net.SplitHostPort(addr); err != nil {
+		addr = net.JoinHostPort(addr, fmt.Sprint(DefaultPort))
+	}
+	raddr, err := net.ResolveUDPAddr("udp4", addr)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.DialUDP("udp4", nil, raddr)
+	if err != nil {
+		return nil, err
+	}
+	return NewClient(conn, opts...), nil
+}
+
 // Close closes the underlying connection. Closing any To variant closes the
 // shared connection for all of them.
 func (c *Client) Close() error { return c.io.conn.Close() }
