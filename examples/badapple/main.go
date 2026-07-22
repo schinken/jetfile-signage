@@ -41,12 +41,17 @@ func main() {
 	invert := flag.Bool("invert", false, "light the dark areas instead of the bright ones")
 	color := flag.String("color", "green", "lit color: green|amber|red")
 	loop := flag.Bool("loop", false, "loop the video (only with -video)")
+	udp := flag.Bool("udp", true, "connect over UDP; these signs (e.g. EUROLITE ESN) have no TCP listener. -udp=false for TCP")
 	flag.Parse()
 	if *addr == "" {
 		log.Fatal("-addr is required")
 	}
 
-	c, err := jetfile.Dial(*addr)
+	dial := jetfile.DialUDP
+	if !*udp {
+		dial = jetfile.Dial
+	}
+	c, err := dial(*addr)
 	if err != nil {
 		log.Fatal(err)
 	}

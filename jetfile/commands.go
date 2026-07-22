@@ -518,6 +518,15 @@ func (c *Client) StreamStatus(ctx context.Context) (StatusCode, error) {
 // StreamData downloads pixel data into the sign's stream buffer, split
 // into ordered packets. The pixel layout must match the format chosen in
 // StartStream.
+//
+// Packets are sent fire-and-forget (FlagNoReply): at frame rate a blocking
+// status round-trip per 512-byte packet is unusable, and a single dropped
+// ack over UDP would stall a whole frame for the request timeout. This is
+// what the working clients for these signs do.
+//
+// ponytail: no device-side flow control — we rely on the caller pacing
+// frames (e.g. an fps ticker). If a sign overruns its triple buffer, gate
+// the cadence on StreamStatus (0x0803) between frames.
 func (c *Client) StreamData(ctx context.Context, pixels []byte) error {
 	qty := (len(pixels) + chunkSize - 1) / chunkSize
 	if qty == 0 {
@@ -529,7 +538,8 @@ func (c *Client) StreamData(ctx context.Context, pixels []byte) error {
 		binary.LittleEndian.PutUint16(arg[0:], chunkSize)
 		binary.LittleEndian.PutUint16(arg[2:], uint16(qty))
 		binary.LittleEndian.PutUint16(arg[4:], uint16(i+1))
-		if err := c.exec(ctx, CmdStreamData, arg, part); err != nil {
+		p := &Packet{Cmd: CmdStreamData, Arg: arg, Data: part, Flag: FlagNoReply}
+		if _, err := c.Do(ctx, p); err != nil {
 			return fmt.Errorf("packet %d/%d: %w", i+1, qty, err)
 		}
 	}

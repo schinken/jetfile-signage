@@ -268,18 +268,31 @@ func TestStreamStatus(t *testing.T) {
 }
 
 func TestStreamDataChunks(t *testing.T) {
-	var reqs []*Packet
-	c := newTestClient(t, func(r *Packet) []*Packet { reqs = append(reqs, r); return ok() })
+	// Stream packets are fire-and-forget: the handler must not reply, or the
+	// synchronous net.Pipe would block on the unread response.
+	reqs := make(chan *Packet, 4)
+	c := newTestClient(t, func(r *Packet) []*Packet { reqs <- r; return nil })
 	if err := c.StreamData(ctx, make([]byte, 600)); err != nil {
 		t.Fatal(err)
 	}
-	if len(reqs) != 2 {
-		t.Fatalf("got %d packets", len(reqs))
+	var got []*Packet
+	for len(got) < 2 {
+		select {
+		case r := <-reqs:
+			got = append(got, r)
+		case <-time.After(time.Second):
+			t.Fatalf("got %d packets, want 2", len(got))
+		}
 	}
-	if qty := binary.LittleEndian.Uint16(reqs[0].Arg[2:]); qty != 2 {
+	for i, r := range got {
+		if r.Flag != FlagNoReply {
+			t.Errorf("packet %d flag = %d, want FlagNoReply", i+1, r.Flag)
+		}
+	}
+	if qty := binary.LittleEndian.Uint16(got[0].Arg[2:]); qty != 2 {
 		t.Errorf("qty = %d", qty)
 	}
-	if cur := binary.LittleEndian.Uint16(reqs[1].Arg[4:]); cur != 2 {
+	if cur := binary.LittleEndian.Uint16(got[1].Arg[4:]); cur != 2 {
 		t.Errorf("current = %d", cur)
 	}
 }
